@@ -78,9 +78,6 @@ create table if not exists public.memory_items (
   importance integer not null default 3 check (importance between 1 and 5),
   is_pinned boolean not null default false,
   metadata jsonb not null default '{}'::jsonb,
-  search_document tsvector generated always as (
-    to_tsvector('english', coalesce(title, '') || ' ' || coalesce(content, '') || ' ' || array_to_string(tags, ' '))
-  ) stored,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -133,31 +130,37 @@ create index if not exists idx_memory_messages_owner_session on public.memory_me
 create index if not exists idx_memory_session_summaries_owner_project on public.memory_session_summaries(owner_id, project_id);
 create index if not exists idx_memory_items_owner_project on public.memory_items(owner_id, project_id);
 create index if not exists idx_memory_items_tags on public.memory_items using gin(tags);
-create index if not exists idx_memory_items_search on public.memory_items using gin(search_document);
+create index if not exists idx_memory_items_title_trgm_ready on public.memory_items(project_id, updated_at desc);
 create index if not exists idx_memory_artifacts_owner_project on public.memory_artifacts(owner_id, project_id);
 create index if not exists idx_memory_files_owner_project on public.memory_files(owner_id, project_id);
 create index if not exists idx_memory_tool_events_owner_project on public.memory_tool_events(owner_id, project_id);
 
+drop trigger if exists set_memory_projects_updated_at on public.memory_projects;
 create trigger set_memory_projects_updated_at
 before update on public.memory_projects
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_memory_sessions_updated_at on public.memory_sessions;
 create trigger set_memory_sessions_updated_at
 before update on public.memory_sessions
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_memory_session_summaries_updated_at on public.memory_session_summaries;
 create trigger set_memory_session_summaries_updated_at
 before update on public.memory_session_summaries
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_memory_items_updated_at on public.memory_items;
 create trigger set_memory_items_updated_at
 before update on public.memory_items
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_memory_artifacts_updated_at on public.memory_artifacts;
 create trigger set_memory_artifacts_updated_at
 before update on public.memory_artifacts
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_memory_files_updated_at on public.memory_files;
 create trigger set_memory_files_updated_at
 before update on public.memory_files
 for each row execute function public.set_updated_at();
@@ -201,6 +204,7 @@ alter table public.memory_artifacts enable row level security;
 alter table public.memory_files enable row level security;
 alter table public.memory_tool_events enable row level security;
 
+drop policy if exists memory_projects_owner_all on public.memory_projects;
 create policy memory_projects_owner_all
 on public.memory_projects
 for all
@@ -208,6 +212,7 @@ to authenticated
 using (owner_id = auth.uid())
 with check (owner_id = auth.uid());
 
+drop policy if exists memory_sessions_owner_all on public.memory_sessions;
 create policy memory_sessions_owner_all
 on public.memory_sessions
 for all
@@ -215,6 +220,7 @@ to authenticated
 using (owner_id = auth.uid())
 with check (owner_id = auth.uid() and public.memory_project_is_owned(project_id));
 
+drop policy if exists memory_messages_owner_all on public.memory_messages;
 create policy memory_messages_owner_all
 on public.memory_messages
 for all
@@ -226,6 +232,7 @@ with check (
   and public.memory_session_is_owned(session_id)
 );
 
+drop policy if exists memory_session_summaries_owner_all on public.memory_session_summaries;
 create policy memory_session_summaries_owner_all
 on public.memory_session_summaries
 for all
@@ -237,6 +244,7 @@ with check (
   and public.memory_session_is_owned(session_id)
 );
 
+drop policy if exists memory_items_owner_all on public.memory_items;
 create policy memory_items_owner_all
 on public.memory_items
 for all
@@ -248,6 +256,7 @@ with check (
   and public.memory_session_is_owned(source_session_id)
 );
 
+drop policy if exists memory_artifacts_owner_all on public.memory_artifacts;
 create policy memory_artifacts_owner_all
 on public.memory_artifacts
 for all
@@ -259,6 +268,7 @@ with check (
   and public.memory_session_is_owned(session_id)
 );
 
+drop policy if exists memory_files_owner_all on public.memory_files;
 create policy memory_files_owner_all
 on public.memory_files
 for all
@@ -270,6 +280,7 @@ with check (
   and public.memory_session_is_owned(session_id)
 );
 
+drop policy if exists memory_tool_events_owner_all on public.memory_tool_events;
 create policy memory_tool_events_owner_all
 on public.memory_tool_events
 for all
