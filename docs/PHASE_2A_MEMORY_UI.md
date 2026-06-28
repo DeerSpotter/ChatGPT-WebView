@@ -108,6 +108,12 @@ Provider developer console callback URL:
 https://<your-project-ref>.supabase.co/auth/v1/callback
 ```
 
+For the full login and redirect checklist, see:
+
+```text
+docs/AUTH_LOGIN_REDIRECT_SETUP.md
+```
+
 ## ChatGPT WebView OAuth handling
 
 The trusted WebView keeps a host allowlist. Sign in providers can open OAuth pages in a popup or a new target frame, which can appear as a black screen if not handled by `WKUIDelegate`.
