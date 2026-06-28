@@ -7,6 +7,7 @@ Make the iOS app talk to a user supplied Supabase memory backend.
 Phase 2A adds a source controlled SwiftUI app with:
 
 - trusted ChatGPT WebView tab
+- always available Setup tab for assisted BYO configuration
 - bring your own Supabase setup screen
 - Supabase Auth screen
 - Keychain backed session storage
@@ -60,8 +61,13 @@ AppMemory/
 ## Runtime flow
 
 ```text
-User opens Memory tab
+User opens Setup tab
   -> enters their Supabase project URL and publishable key
+  -> runs diagnostics
+  -> opens Supabase/GitHub setup pages inside the app if needed
+  -> copies callback URLs from the app
+  -> saves setup
+  -> opens Memory tab
   -> signs in with Supabase Auth for that project
   -> token is stored in iOS Keychain
   -> app calls /functions/v1/memory with Authorization: Bearer <user JWT>
@@ -115,6 +121,16 @@ The WebView now:
 The WebView keeps trusted ChatGPT, OpenAI, and OAuth domains inside the app. Normal outbound links from ChatGPT answers are no longer silently blocked.
 
 External links now open outside the app through iOS using `UIApplication.shared.open`. This keeps the ChatGPT WebView constrained while still allowing normal links, email links, phone links, and text message links to work.
+
+## Assisted setup handling
+
+The Setup tab is always reachable. It includes:
+
+- in app browser buttons for Supabase Dashboard, GitHub OAuth Apps, and repo docs
+- setup diagnostics
+- setup deep link preview
+- app callback URL copy button
+- provider callback URL copy button
 
 ## WebView lifecycle handling
 
