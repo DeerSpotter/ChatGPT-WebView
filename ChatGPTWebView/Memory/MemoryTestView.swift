@@ -13,10 +13,21 @@ struct MemoryTestView: View {
         NavigationView {
             Form {
                 Section("Account") {
-                    Text(appModel.authEmail ?? "Signed in")
+                    Text(appModel.authEmail ?? "Logged in")
                         .font(.footnote)
-                    Button("Sign Out", role: .destructive) {
+
+                    if let config = appModel.configStore.config {
+                        Text("Project: \(config.projectRef)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Button("Log Out", role: .destructive) {
                         appModel.signOut()
+                    }
+
+                    Button("Change Supabase Project", role: .destructive) {
+                        appModel.clearConfig()
                     }
                 }
 
