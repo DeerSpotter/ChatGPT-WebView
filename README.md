@@ -14,6 +14,7 @@ The upstream release IPA should not be treated as trusted unless that exact IPA 
 - Safari 16+ User-Agent spoofing
 - Mic input (speech-to-text)
 - Dark mode support
+- Bring your own Supabase project setup
 - Supabase Auth test flow
 - Supabase memory save/search test flow
 - TrollStore compatibility
@@ -24,6 +25,8 @@ The upstream release IPA should not be treated as trusted unless that exact IPA 
 The next app direction is a Supabase backed memory layer for project/session continuity.
 
 Goal: avoid losing progress when a chat gets too large by storing compact project memory, summaries, decisions, tasks, artifacts, and file notes outside the chat session.
+
+The public app does not hardcode a developer-owned Supabase project. Each user supplies their own Supabase project URL and publishable key, then deploys the memory schema and Edge Function into that project.
 
 Start here:
 
