@@ -7,6 +7,7 @@ Make the iOS app talk to a user supplied Supabase memory backend.
 Phase 2A adds a source controlled SwiftUI app with:
 
 - trusted ChatGPT WebView tab
+- ChatGPT tab stop overlay
 - ChatGPT tab refresh overlay
 - always available Setup tab for assisted BYO configuration
 - bring your own Supabase setup screen
@@ -102,14 +103,20 @@ User opens Setup tab
   -> Supabase RLS scopes rows to owner_id inside that user's project
 ```
 
-## ChatGPT tab quick action
+## ChatGPT tab quick actions
 
-The ChatGPT tab has a small refresh overlay above the WebView:
+The ChatGPT tab has small overlay controls above the WebView:
 
 ```text
+Stop icon
+  -> attempts to stop current WebView activity quickly
+  -> useful when ChatGPT is responding down the wrong path and the page UI is slow to update
+
 Refresh icon
   -> reloads the current ChatGPT WebView session
 ```
+
+The Stop icon uses the WebView stop action. It does not click or scrape ChatGPT's internal page controls. Because this is still a WebView wrapper, it may not perfectly cancel every streaming response inside the ChatGPT page. A guaranteed stop/cancel action belongs in a future OpenAI API chat tab where the app owns the request lifecycle.
 
 The ChatGPT tab should not expose a manual write context button as the core memory flow. Manual context entry adds work instead of removing it.
 
@@ -209,7 +216,7 @@ The ChatGPT tab now uses a persistent `ChatGPTWebViewStore` with a single `WKWeb
 
 This can preserve the login page while the app is still alive in memory. If iOS fully terminates the app in the background, the page cannot be kept alive, but cookies and website data still use the default persistent WebKit data store.
 
-The ChatGPT tab also includes a small refresh control. If the WebView feels frozen after returning to the app, the user can reload the current ChatGPT session without restarting the app.
+The ChatGPT tab also includes small stop and refresh controls. If the WebView feels frozen after returning to the app, the user can try stop first, then refresh the current ChatGPT session without restarting the app.
 
 ## Build artifact
 
