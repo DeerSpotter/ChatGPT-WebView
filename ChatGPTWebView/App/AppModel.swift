@@ -19,6 +19,8 @@ final class AppModel: ObservableObject {
     private let tokenStore = TokenStore()
     private let oauthSession = OAuthWebAuthenticationSession()
     private let diagnosticsClient = SupabaseDiagnosticsClient()
+    private let defaultProjectName = "ChatGPT-WebView"
+    private let defaultProjectDescription = "Default memory project for ChatGPT WebView."
 
     func restoreSession() async {
         guard self.configStore.config != nil else {
@@ -35,7 +37,7 @@ final class AppModel: ObservableObject {
         self.isAuthenticated = true
         self.authEmail = session.email
         self.statusMessage = "Signed in as \(session.email ?? "stored session")"
-        await self.refreshProjects()
+        await self.refreshProjects(autoCreateDefault: true)
     }
 
     func handleOpenURL(_ url: URL) {
@@ -125,7 +127,7 @@ final class AppModel: ObservableObject {
         await runBusy("Signing in...") { [self] in
             let session = try await self.authClient().signIn(email: email, password: password)
             self.applySignedInSession(session, message: "Signed in.")
-            await self.refreshProjects()
+            try await self.loadProjects(autoCreateDefault: true)
         }
     }
 
@@ -133,7 +135,7 @@ final class AppModel: ObservableObject {
         await runBusy("Creating account...") { [self] in
             let session = try await self.authClient().signUp(email: email, password: password)
             self.applySignedInSession(session, message: "Account created and signed in.")
-            await self.refreshProjects()
+            try await self.loadProjects(autoCreateDefault: true)
         }
     }
 
@@ -151,7 +153,7 @@ final class AppModel: ObservableObject {
 
             let session = try await self.authClient().session(fromOAuthCallback: callbackURL)
             self.applySignedInSession(session, message: "Logged in with \(provider.title).")
-            await self.refreshProjects()
+            try await self.loadProjects(autoCreateDefault: true)
         }
     }
 
@@ -168,14 +170,9 @@ final class AppModel: ObservableObject {
         self.statusMessage = "Logged out."
     }
 
-    func refreshProjects() async {
-        await runBusy("Loading projects...") { [self] in
-            let loaded = try await self.memoryClient().listProjects()
-            self.projects = loaded
-            if self.selectedProject == nil {
-                self.selectedProject = loaded.first
-            }
-            self.statusMessage = loaded.isEmpty ? "No memory projects yet." : "Loaded \(loaded.count) memory project(s)."
+    func refreshProjects(autoCreateDefault: Bool = false) async {
+        await runBusy(autoCreateDefault ? "Loading memory project..." : "Loading projects...") { [self] in
+            try await self.loadProjects(autoCreateDefault: autoCreateDefault)
         }
     }
 
@@ -183,7 +180,7 @@ final class AppModel: ObservableObject {
         await runBusy("Creating project...") { [self] in
             let project = try await self.memoryClient().createProject(name: name, description: description)
             self.selectedProject = project
-            await self.refreshProjects()
+            try await self.loadProjects(autoCreateDefault: false)
             self.statusMessage = "Created project: \(project.name)"
         }
     }
@@ -219,6 +216,38 @@ final class AppModel: ObservableObject {
         await runBusy("Searching memory...") { [self] in
             self.searchResults = try await self.memoryClient().searchMemory(projectID: selectedProject.id, query: query)
             self.statusMessage = "Found \(self.searchResults.count) result(s)."
+        }
+    }
+
+    private func loadProjects(autoCreateDefault: Bool) async throws {
+        var loaded = try await self.memoryClient().listProjects()
+
+        if loaded.isEmpty && autoCreateDefault {
+            let project = try await self.memoryClient().createProject(
+                name: defaultProjectName,
+                description: defaultProjectDescription
+            )
+            loaded = [project]
+            self.projects = loaded
+            self.selectedProject = project
+            self.statusMessage = "Created and selected default memory project."
+            return
+        }
+
+        self.projects = loaded
+
+        if let selectedProject,
+           loaded.contains(where: { $0.id == selectedProject.id }) {
+            self.statusMessage = "Loaded \(loaded.count) memory project(s)."
+            return
+        }
+
+        self.selectedProject = loaded.first
+
+        if let selectedProject = self.selectedProject {
+            self.statusMessage = "Selected memory project: \(selectedProject.name)."
+        } else {
+            self.statusMessage = "No memory projects yet."
         }
     }
 
