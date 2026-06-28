@@ -14,10 +14,12 @@ The upstream release IPA should not be treated as trusted unless that exact IPA 
 - Safari 16+ User-Agent spoofing
 - Mic input (speech-to-text)
 - Dark mode support
+- ChatGPT tab refresh button for reloading a stale or frozen WebView session
 - Bring your own Supabase project setup
 - Supabase setup diagnostics
 - Supabase setup deep link import
 - Supabase Auth test flow
+- Supabase memory dashboard
 - Supabase memory save/search test flow
 - Copy context for ChatGPT workflow
 - TrollStore compatibility
