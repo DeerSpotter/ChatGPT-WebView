@@ -7,7 +7,6 @@ Make the iOS app talk to a user supplied Supabase memory backend.
 Phase 2A adds a source controlled SwiftUI app with:
 
 - trusted ChatGPT WebView tab
-- ChatGPT tab Save Context overlay
 - ChatGPT tab refresh overlay
 - always available Setup tab for assisted BYO configuration
 - bring your own Supabase setup screen
@@ -18,6 +17,29 @@ Phase 2A adds a source controlled SwiftUI app with:
 - project create/list flow
 - memory save/search flow
 - unsigned IPA build from repository source
+
+## Product rule: memory must reduce work
+
+Manual context writing is not the product goal.
+
+A memory system is only useful if it reduces the user's burden. A flow where the user must manually rewrite the active conversation into a memory form should not be treated as the main feature.
+
+Acceptable memory capture directions:
+
+```text
+OpenAI API chat tab
+  -> app owns the chat messages
+  -> app can automatically summarize and save important context
+
+ChatGPT App / MCP connector
+  -> ChatGPT can call memory tools directly
+  -> user can approve save actions
+  -> backend writes structured memory to Supabase
+
+Manual save/search UI
+  -> allowed only as admin/debug/fallback tooling
+  -> not the core product purpose
+```
 
 ## Architecture decision
 
@@ -80,28 +102,16 @@ User opens Setup tab
   -> Supabase RLS scopes rows to owner_id inside that user's project
 ```
 
-## ChatGPT tab quick actions
+## ChatGPT tab quick action
 
-The ChatGPT tab has small overlay controls above the WebView:
+The ChatGPT tab has a small refresh overlay above the WebView:
 
 ```text
-Save Context icon
-  -> opens quick save sheet
-  -> user types or pastes important ChatGPT context
-  -> app saves it into the selected Supabase memory project
-
 Refresh icon
   -> reloads the current ChatGPT WebView session
 ```
 
-The Save Context button is intentionally outside the ChatGPT web page. It should not inject JavaScript, scrape the DOM, read cookies, or silently copy page contents. Fully automatic capture of the active conversation belongs in a future OpenAI API based chat tab where the app owns the chat messages.
-
-Current safe capture path:
-
-1. copy important text from ChatGPT or type a short summary
-2. tap Save Context
-3. paste or enter the context
-4. save it to the selected memory project
+The ChatGPT tab should not expose a manual write context button as the core memory flow. Manual context entry adds work instead of removing it.
 
 ## Memory tab layout
 
@@ -119,12 +129,7 @@ Memory tab
   -> Account and Setup card
 ```
 
-This keeps the most common workflow near the top:
-
-1. confirm the selected memory project
-2. search for saved context
-3. copy context for ChatGPT
-4. save a new memory when needed
+This keeps management and debugging available without pretending manual memory writing is the ideal workflow.
 
 Setup and account actions stay lower on the screen because the dedicated Setup tab already handles assisted configuration.
 
