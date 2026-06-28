@@ -31,6 +31,8 @@ Goal: avoid losing progress when a chat gets too large by storing compact projec
 
 The public app does not hardcode a developer-owned Supabase project. Each user supplies their own Supabase project URL and publishable key, then deploys the memory schema and Edge Function into that project.
 
+A later phase documents a multi cloud file context layer. That idea keeps large files and archives outside the GPT sandbox, routes uploads into user connected cloud storage, and exposes files to GPT through scoped context links and backend tools.
+
 Start here:
 
 - [Project goals](docs/PROJECT_GOALS.md)
@@ -38,6 +40,7 @@ Start here:
 - [Phase 1 deployment status](docs/PHASE_1_DEPLOYMENT_STATUS.md)
 - [Phase 2A memory UI](docs/PHASE_2A_MEMORY_UI.md)
 - [Copy context for ChatGPT](docs/COPY_CONTEXT_FOR_CHATGPT.md)
+- [Phase 4B multi cloud file context](docs/PHASE_4B_MULTI_CLOUD_FILE_CONTEXT.md)
 - [Onboarding options](docs/ONBOARDING_OPTIONS.md)
 - [Auth login and redirect setup](docs/AUTH_LOGIN_REDIRECT_SETUP.md)
 - [Connector assisted setup](docs/CONNECTOR_ASSISTED_SETUP.md)
