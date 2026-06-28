@@ -44,6 +44,7 @@ Start here:
 - [Phase 1 Supabase memory plan](docs/PHASE_1_SUPABASE_MEMORY.md)
 - [Phase 1 deployment status](docs/PHASE_1_DEPLOYMENT_STATUS.md)
 - [Phase 2A memory UI](docs/PHASE_2A_MEMORY_UI.md)
+- [Saved memory direction context](docs/SAVED_CONTEXT_MEMORY_DIRECTION.md)
 - [Copy context for ChatGPT](docs/COPY_CONTEXT_FOR_CHATGPT.md)
 - [Phase 4B multi cloud file context](docs/PHASE_4B_MULTI_CLOUD_FILE_CONTEXT.md)
 - [Onboarding options](docs/ONBOARDING_OPTIONS.md)
