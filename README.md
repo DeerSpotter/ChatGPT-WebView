@@ -14,14 +14,13 @@ The upstream release IPA should not be treated as trusted unless that exact IPA 
 - Safari 16+ User-Agent spoofing
 - Mic input (speech-to-text)
 - Dark mode support
-- ChatGPT tab Save Context button for quickly saving important context into memory
 - ChatGPT tab refresh button for reloading a stale or frozen WebView session
 - Bring your own Supabase project setup
 - Supabase setup diagnostics
 - Supabase setup deep link import
 - Supabase Auth test flow
 - Supabase memory dashboard
-- Supabase memory save/search test flow
+- Supabase memory save/search management UI
 - Copy context for ChatGPT workflow
 - TrollStore compatibility
 - Manual or Xcode install
@@ -31,6 +30,8 @@ The upstream release IPA should not be treated as trusted unless that exact IPA 
 The next app direction is a Supabase backed memory layer for project/session continuity.
 
 Goal: avoid losing progress when a chat gets too large by storing compact project memory, summaries, decisions, tasks, artifacts, and file notes outside the chat session.
+
+Manual context writing is not the product goal. Memory capture should reduce work through an OpenAI API chat tab, a ChatGPT App/MCP connector, or another tool driven flow where ChatGPT can create structured memory with user approval.
 
 The public app does not hardcode a developer-owned Supabase project. Each user supplies their own Supabase project URL and publishable key, then deploys the memory schema and Edge Function into that project.
 
