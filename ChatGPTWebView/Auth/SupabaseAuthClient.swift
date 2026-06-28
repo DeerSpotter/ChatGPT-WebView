@@ -24,6 +24,28 @@ enum SupabaseAuthClientError: Error, LocalizedError {
     }
 }
 
+enum SupabaseOAuthProvider: String, CaseIterable, Identifiable, Sendable {
+    case github
+    case google
+    case apple
+    case azure
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .github:
+            return "GitHub"
+        case .google:
+            return "Google"
+        case .apple:
+            return "Apple"
+        case .azure:
+            return "Microsoft"
+        }
+    }
+}
+
 actor SupabaseAuthClient {
     private let projectURL: URL
     private let publishableKey: String
@@ -70,6 +92,54 @@ actor SupabaseAuthClient {
             body: [
                 "refresh_token": refreshToken
             ]
+        )
+    }
+
+    func oauthAuthorizationURL(provider: SupabaseOAuthProvider, redirectTo: URL) throws -> URL {
+        let url = projectURL.appendingPathComponent("auth/v1/authorize")
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "provider", value: provider.rawValue),
+            URLQueryItem(name: "redirect_to", value: redirectTo.absoluteString)
+        ]
+
+        guard let authURL = components.url else {
+            throw SupabaseAuthClientError.invalidResponse
+        }
+
+        return authURL
+    }
+
+    func session(fromOAuthCallback callbackURL: URL) throws -> SupabaseSession {
+        var values: [String: String] = [:]
+
+        if let fragment = callbackURL.fragment {
+            URLComponents(string: "callback://callback?\(fragment)")?.queryItems?.forEach { item in
+                values[item.name] = item.value
+            }
+        }
+
+        URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?.queryItems?.forEach { item in
+            values[item.name] = item.value
+        }
+
+        if let errorDescription = values["error_description"] ?? values["error"] {
+            throw SupabaseAuthClientError.serverError(errorDescription.replacingOccurrences(of: "+", with: " "))
+        }
+
+        guard let accessToken = values["access_token"],
+              let refreshToken = values["refresh_token"] else {
+            throw SupabaseAuthClientError.serverError("OAuth callback did not include a Supabase session. Check that the provider is enabled and the redirect URL is allowlisted.")
+        }
+
+        let expiresIn = values["expires_in"].flatMap(TimeInterval.init) ?? 3600
+        let email = values["email"]
+
+        return SupabaseSession(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresAt: Date().addingTimeInterval(expiresIn),
+            email: email
         )
     }
 
