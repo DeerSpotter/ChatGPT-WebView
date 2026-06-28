@@ -50,6 +50,17 @@ User opens Memory tab
   -> Supabase RLS scopes rows to owner_id
 ```
 
+## ChatGPT WebView OAuth handling
+
+The trusted WebView keeps a host allowlist. Sign in providers can open OAuth pages in a popup or a new target frame, which can appear as a black screen if not handled by `WKUIDelegate`.
+
+The WebView now:
+
+- keeps the normal ChatGPT/OpenAI allowlist
+- allows common OAuth identity provider domains used by Apple, Google, and Microsoft sign in
+- handles `targetFrame == nil` popup navigation by loading the trusted OAuth URL into the same WebView
+- still rejects non HTTPS pages and arbitrary unrelated hosts
+
 ## Build artifact
 
 The Phase 2A build workflow uploads:
