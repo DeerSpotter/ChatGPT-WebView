@@ -14,6 +14,8 @@ The upstream release IPA should not be treated as trusted unless that exact IPA 
 - Safari 16+ User-Agent spoofing
 - Mic input (speech-to-text)
 - Dark mode support
+- Supabase Auth test flow
+- Supabase memory save/search test flow
 - TrollStore compatibility
 - Manual or Xcode install
 
@@ -28,9 +30,20 @@ Start here:
 - [Project goals](docs/PROJECT_GOALS.md)
 - [Phase 1 Supabase memory plan](docs/PHASE_1_SUPABASE_MEMORY.md)
 - [Phase 1 deployment status](docs/PHASE_1_DEPLOYMENT_STATUS.md)
+- [Phase 2A memory UI](docs/PHASE_2A_MEMORY_UI.md)
 - [Memory schema migration](supabase/migrations/20260628160000_create_memory_schema.sql)
 - [Memory Edge Function](supabase/functions/memory/index.ts)
-- [Swift memory client stub](AppMemory/SupabaseMemoryClient.swift)
+- [Swift memory client](AppMemory/SupabaseMemoryClient.swift)
+
+## Source controlled app
+
+The Phase 2 app source lives under:
+
+- `ChatGPTWebView/`
+- `AppMemory/`
+- `project.yml`
+
+The build workflow generates the Xcode project from `project.yml` and uploads an unsigned IPA artifact.
 
 ## Build Requirements
 
