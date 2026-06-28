@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import WebKit
 
 @MainActor
@@ -56,11 +57,19 @@ final class SecureChatGPTWebViewCoordinator: NSObject, WKNavigationDelegate, WKU
         "msauth.net"
     ]
 
-    private let allowedSchemes = [
+    private let internalSchemes = [
         "https",
         "about",
         "blob",
         "data"
+    ]
+
+    private let externalSchemes = [
+        "http",
+        "https",
+        "mailto",
+        "tel",
+        "sms"
     ]
 
     func webView(_ webView: WKWebView,
@@ -71,7 +80,16 @@ final class SecureChatGPTWebViewCoordinator: NSObject, WKNavigationDelegate, WKU
             return
         }
 
-        decisionHandler(isAllowed(url: url) ? .allow : .cancel)
+        if isAllowedInsideWebView(url: url) {
+            decisionHandler(.allow)
+            return
+        }
+
+        if shouldOpenExternally(url: url, navigationAction: navigationAction) {
+            openExternally(url)
+        }
+
+        decisionHandler(.cancel)
     }
 
     func webView(_ webView: WKWebView,
@@ -79,17 +97,21 @@ final class SecureChatGPTWebViewCoordinator: NSObject, WKNavigationDelegate, WKU
                  for navigationAction: WKNavigationAction,
                  windowFeatures: WKWindowFeatures) -> WKWebView? {
         guard navigationAction.targetFrame == nil,
-              let url = navigationAction.request.url,
-              isAllowed(url: url) else {
+              let url = navigationAction.request.url else {
             return nil
         }
 
-        webView.load(URLRequest(url: url))
+        if isAllowedInsideWebView(url: url) {
+            webView.load(URLRequest(url: url))
+        } else if shouldOpenExternally(url: url, navigationAction: navigationAction) {
+            openExternally(url)
+        }
+
         return nil
     }
 
-    private func isAllowed(url: URL) -> Bool {
-        guard let scheme = url.scheme?.lowercased(), allowedSchemes.contains(scheme) else {
+    private func isAllowedInsideWebView(url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(), internalSchemes.contains(scheme) else {
             return false
         }
 
@@ -103,6 +125,29 @@ final class SecureChatGPTWebViewCoordinator: NSObject, WKNavigationDelegate, WKU
 
         return allowedHostSuffixes.contains { suffix in
             host == suffix || host.hasSuffix("." + suffix)
+        }
+    }
+
+    private func shouldOpenExternally(url: URL, navigationAction: WKNavigationAction) -> Bool {
+        guard let scheme = url.scheme?.lowercased(), externalSchemes.contains(scheme) else {
+            return false
+        }
+
+        if isAllowedInsideWebView(url: url) {
+            return false
+        }
+
+        switch navigationAction.navigationType {
+        case .linkActivated, .formSubmitted, .other:
+            return true
+        default:
+            return navigationAction.targetFrame == nil
+        }
+    }
+
+    private func openExternally(_ url: URL) {
+        DispatchQueue.main.async {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
     }
 
