@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct MemoryTestView: View {
     @EnvironmentObject private var appModel: AppModel
@@ -80,6 +81,18 @@ struct MemoryTestView: View {
                         Task { await appModel.searchMemory(query: searchQuery) }
                     }
                     .disabled(appModel.isBusy || appModel.selectedProject == nil || searchQuery.isEmpty)
+
+                    Button("Copy Context for ChatGPT") {
+                        UIPasteboard.general.string = appModel.formattedContextForChatGPT(searchQuery: searchQuery)
+                        appModel.statusMessage = "Copied formatted memory context for ChatGPT."
+                    }
+                    .disabled(appModel.searchResults.isEmpty)
+
+                    if !appModel.searchResults.isEmpty {
+                        Text("Paste the copied context into the ChatGPT tab to continue with this project memory.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
 
                     ForEach(appModel.searchResults) { item in
                         VStack(alignment: .leading, spacing: 6) {
