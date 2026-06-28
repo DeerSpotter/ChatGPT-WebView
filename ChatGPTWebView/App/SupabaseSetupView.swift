@@ -1,14 +1,35 @@
 import SwiftUI
+import UIKit
 
 struct SupabaseSetupView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var projectURLText = ""
     @State private var publishableKey = ""
     @State private var setupLink = ""
+    @State private var browserURL: URL?
+
+    private let appCallbackURL = "chatgptwebview://auth-callback"
 
     var body: some View {
         NavigationView {
             Form {
+                Section("Setup Helper") {
+                    Text("Open setup pages without leaving the app. Use Done to return here.")
+                        .font(.footnote)
+
+                    Button("Open Supabase Dashboard") {
+                        browserURL = URL(string: "https://supabase.com/dashboard")
+                    }
+
+                    Button("Open GitHub OAuth Apps") {
+                        browserURL = URL(string: "https://github.com/settings/developers")
+                    }
+
+                    Button("Open This Repo") {
+                        browserURL = URL(string: "https://github.com/DeerSpotter/ChatGPT-WebView")
+                    }
+                }
+
                 Section("Your Supabase Project") {
                     TextField("https://project-ref.supabase.co", text: $projectURLText)
                         .textInputAutocapitalization(.never)
@@ -77,18 +98,41 @@ struct SupabaseSetupView: View {
                         Text(setupLink)
                             .font(.system(.caption, design: .monospaced))
                             .textSelection(.enabled)
+
+                        Button("Copy Setup Link") {
+                            UIPasteboard.general.string = setupLink
+                            appModel.statusMessage = "Setup link copied."
+                        }
+                    }
+                }
+
+                Section("Callback URLs") {
+                    Text("Supabase Auth URL Configuration:")
+                    Text(appCallbackURL)
+                        .font(.system(.footnote, design: .monospaced))
+                        .textSelection(.enabled)
+
+                    Button("Copy App Callback URL") {
+                        UIPasteboard.general.string = appCallbackURL
+                        appModel.statusMessage = "App callback URL copied."
+                    }
+
+                    if let providerCallback = providerCallbackURLText() {
+                        Text("Provider callback URL:")
+                        Text(providerCallback)
+                            .font(.system(.footnote, design: .monospaced))
+                            .textSelection(.enabled)
+
+                        Button("Copy Provider Callback URL") {
+                            UIPasteboard.general.string = providerCallback
+                            appModel.statusMessage = "Provider callback URL copied."
+                        }
                     }
                 }
 
                 Section("Important") {
                     Text("Use your own Supabase project. Do not paste a secret key or service role key into the app.")
                     Text("The memory schema and Edge Function must be deployed to this project before memory search/save will work.")
-                }
-
-                Section("Required Callback URL") {
-                    Text("Add this under Supabase Authentication URL Configuration:")
-                    Text("chatgptwebview://auth-callback")
-                        .font(.system(.footnote, design: .monospaced))
                 }
 
                 Section("Status") {
@@ -101,6 +145,9 @@ struct SupabaseSetupView: View {
             }
             .navigationTitle("Supabase Setup")
         }
+        .sheet(item: $browserURL) { url in
+            InAppBrowserView(url: url)
+        }
         .onAppear {
             if let config = appModel.configStore.config {
                 projectURLText = config.projectURL.absoluteString
@@ -108,4 +155,19 @@ struct SupabaseSetupView: View {
             }
         }
     }
+
+    private func providerCallbackURLText() -> String? {
+        guard let config = try? SupabaseConfigValidation.normalize(
+            projectURLText: projectURLText,
+            publishableKey: publishableKey
+        ) else {
+            return nil
+        }
+
+        return config.projectURL.appendingPathComponent("auth/v1/callback").absoluteString
+    }
+}
+
+extension URL: Identifiable {
+    public var id: String { absoluteString }
 }
