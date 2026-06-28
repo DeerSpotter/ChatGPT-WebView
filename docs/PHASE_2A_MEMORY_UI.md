@@ -12,6 +12,7 @@ Phase 2A adds a source controlled SwiftUI app with:
 - Supabase Auth screen
 - Keychain backed session storage
 - Memory Test screen
+- automatic default memory project creation after login
 - project create/list flow
 - memory save/search flow
 - unsigned IPA build from repository source
@@ -70,6 +71,8 @@ User opens Setup tab
   -> opens Memory tab
   -> signs in with Supabase Auth for that project
   -> token is stored in iOS Keychain
+  -> app loads memory projects
+  -> if no projects exist, app creates and selects ChatGPT-WebView
   -> app calls /functions/v1/memory with Authorization: Bearer <user JWT>
   -> Supabase RLS scopes rows to owner_id inside that user's project
 ```
@@ -131,6 +134,12 @@ The Setup tab is always reachable. It includes:
 - setup deep link preview
 - app callback URL copy button
 - provider callback URL copy button
+
+## Default memory project handling
+
+After login or session restore, the app loads the user's memory projects. If none exist, it automatically creates and selects a default project named `ChatGPT-WebView`.
+
+This prevents a new user from landing on `Selected: None` with Save/Search disabled.
 
 ## WebView lifecycle handling
 
