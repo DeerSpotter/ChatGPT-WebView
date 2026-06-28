@@ -9,6 +9,7 @@ final class AppModel: ObservableObject {
     @Published var projects: [MemoryProject] = []
     @Published var selectedProject: MemoryProject?
     @Published var searchResults: [MemoryItem] = []
+    @Published var diagnostics: [SupabaseDiagnosticResult] = []
     @Published var isBusy = false
 
     let configStore = SupabaseConfigStore()
@@ -17,6 +18,7 @@ final class AppModel: ObservableObject {
     private let callbackURL = URL(string: "chatgptwebview://auth-callback")!
     private let tokenStore = TokenStore()
     private let oauthSession = OAuthWebAuthenticationSession()
+    private let diagnosticsClient = SupabaseDiagnosticsClient()
 
     func restoreSession() async {
         guard self.configStore.config != nil else {
@@ -36,6 +38,23 @@ final class AppModel: ObservableObject {
         await self.refreshProjects()
     }
 
+    func handleOpenURL(_ url: URL) {
+        guard url.scheme?.lowercased() == callbackScheme else {
+            return
+        }
+
+        guard url.host?.lowercased() == "setup" else {
+            return
+        }
+
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let projectURLText = items.first(where: { $0.name == "url" })?.value ?? ""
+        let publishableKey = items.first(where: { $0.name == "key" })?.value ?? ""
+
+        self.saveConfig(projectURLText: projectURLText, publishableKey: publishableKey)
+        self.statusMessage = "Imported Supabase setup link. Run diagnostics, then log in."
+    }
+
     func saveConfig(projectURLText: String, publishableKey: String) {
         do {
             try self.configStore.save(projectURLText: projectURLText, publishableKey: publishableKey)
@@ -48,7 +67,58 @@ final class AppModel: ObservableObject {
 
     func clearConfig() {
         self.signOut(clearConfig: true)
+        self.diagnostics = []
         self.statusMessage = "Supabase project config cleared."
+    }
+
+    func runDiagnostics(projectURLText: String, publishableKey: String) async {
+        self.isBusy = true
+        self.statusMessage = "Running Supabase diagnostics..."
+        defer { self.isBusy = false }
+
+        self.diagnostics = await diagnosticsClient.run(
+            projectURLText: projectURLText,
+            publishableKey: publishableKey
+        )
+
+        let failed = self.diagnostics.filter { $0.status == .fail }.count
+        let warnings = self.diagnostics.filter { $0.status == .warning }.count
+
+        if failed > 0 {
+            self.statusMessage = "Diagnostics found \(failed) failure(s)."
+        } else if warnings > 0 {
+            self.statusMessage = "Diagnostics passed with \(warnings) warning(s)."
+        } else {
+            self.statusMessage = "Diagnostics passed."
+        }
+    }
+
+    func runSavedDiagnostics() async {
+        guard let config = self.configStore.config else {
+            self.statusMessage = SupabaseConfigError.noConfig.localizedDescription
+            return
+        }
+
+        await self.runDiagnostics(
+            projectURLText: config.projectURL.absoluteString,
+            publishableKey: config.publishableKey
+        )
+    }
+
+    func setupDeepLink(projectURLText: String, publishableKey: String) -> String? {
+        guard let config = try? SupabaseConfigValidation.normalize(projectURLText: projectURLText, publishableKey: publishableKey) else {
+            return nil
+        }
+
+        var components = URLComponents()
+        components.scheme = callbackScheme
+        components.host = "setup"
+        components.queryItems = [
+            URLQueryItem(name: "url", value: config.projectURL.absoluteString),
+            URLQueryItem(name: "key", value: config.publishableKey)
+        ]
+
+        return components.url?.absoluteString
     }
 
     func signIn(email: String, password: String) async {
