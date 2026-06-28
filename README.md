@@ -15,6 +15,8 @@ The upstream release IPA should not be treated as trusted unless that exact IPA 
 - Mic input (speech-to-text)
 - Dark mode support
 - Bring your own Supabase project setup
+- Supabase setup diagnostics
+- Supabase setup deep link import
 - Supabase Auth test flow
 - Supabase memory save/search test flow
 - TrollStore compatibility
@@ -34,8 +36,11 @@ Start here:
 - [Phase 1 Supabase memory plan](docs/PHASE_1_SUPABASE_MEMORY.md)
 - [Phase 1 deployment status](docs/PHASE_1_DEPLOYMENT_STATUS.md)
 - [Phase 2A memory UI](docs/PHASE_2A_MEMORY_UI.md)
+- [Onboarding options](docs/ONBOARDING_OPTIONS.md)
+- [Connector assisted setup](docs/CONNECTOR_ASSISTED_SETUP.md)
 - [Memory schema migration](supabase/migrations/20260628160000_create_memory_schema.sql)
 - [Memory Edge Function](supabase/functions/memory/index.ts)
+- [BYO setup script](scripts/setup-byo-supabase-memory.sh)
 - [Swift memory client](AppMemory/SupabaseMemoryClient.swift)
 
 ## Source controlled app
