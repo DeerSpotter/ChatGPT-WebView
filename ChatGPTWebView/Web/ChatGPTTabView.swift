@@ -8,12 +8,22 @@ struct ChatGPTTabView: View {
             SecureChatGPTWebView(store: webViewStore)
                 .ignoresSafeArea(.keyboard, edges: .bottom)
 
-            CircleIconButton(
-                systemImage: "arrow.clockwise",
-                accessibilityLabel: "Reload ChatGPT session",
-                accessibilityHint: "Reloads the current ChatGPT WebView page if the app feels frozen"
-            ) {
-                webViewStore.reloadCurrentSession()
+            HStack(spacing: 10) {
+                CircleIconButton(
+                    systemImage: "stop.circle",
+                    accessibilityLabel: "Stop ChatGPT activity",
+                    accessibilityHint: "Attempts to stop the current WebView activity quickly"
+                ) {
+                    webViewStore.stopCurrentActivity()
+                }
+
+                CircleIconButton(
+                    systemImage: "arrow.clockwise",
+                    accessibilityLabel: "Reload ChatGPT session",
+                    accessibilityHint: "Reloads the current ChatGPT WebView page if the app feels frozen"
+                ) {
+                    webViewStore.reloadCurrentSession()
+                }
             }
             .padding(.top, 12)
             .padding(.trailing, 12)
