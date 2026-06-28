@@ -4,6 +4,7 @@ struct SupabaseSetupView: View {
     @EnvironmentObject private var appModel: AppModel
     @State private var projectURLText = ""
     @State private var publishableKey = ""
+    @State private var setupLink = ""
 
     var body: some View {
         NavigationView {
@@ -18,6 +19,16 @@ struct SupabaseSetupView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
+                    Button("Run Diagnostics") {
+                        Task {
+                            await appModel.runDiagnostics(
+                                projectURLText: projectURLText,
+                                publishableKey: publishableKey
+                            )
+                        }
+                    }
+                    .disabled(appModel.isBusy || projectURLText.isEmpty || publishableKey.isEmpty)
+
                     Button("Save Supabase Project") {
                         appModel.saveConfig(
                             projectURLText: projectURLText,
@@ -25,6 +36,48 @@ struct SupabaseSetupView: View {
                         )
                     }
                     .disabled(projectURLText.isEmpty || publishableKey.isEmpty)
+                }
+
+                Section("Diagnostics") {
+                    if appModel.diagnostics.isEmpty {
+                        Text("Run diagnostics before logging in. The app will check the project URL, publishable key, auth settings, and memory function.")
+                            .font(.footnote)
+                    } else {
+                        ForEach(appModel.diagnostics) { item in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(item.status.rawValue)
+                                        .font(.caption)
+                                        .bold()
+                                    Text(item.name)
+                                        .font(.headline)
+                                }
+                                Text(item.detail)
+                                    .font(.footnote)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+
+                Section("Import Setup Link") {
+                    Text("Advanced setup can be imported with a link like this. It must include only the project URL and publishable key.")
+                        .font(.footnote)
+
+                    Button("Generate Setup Link Preview") {
+                        setupLink = appModel.setupDeepLink(
+                            projectURLText: projectURLText,
+                            publishableKey: publishableKey
+                        ) ?? "Invalid project URL or key."
+                    }
+                    .disabled(projectURLText.isEmpty || publishableKey.isEmpty)
+
+                    if !setupLink.isEmpty {
+                        Text(setupLink)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                    }
                 }
 
                 Section("Important") {
