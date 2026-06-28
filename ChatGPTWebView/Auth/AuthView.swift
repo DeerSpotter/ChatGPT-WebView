@@ -8,17 +8,24 @@ struct AuthView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("Supabase Sign In") {
+                Section("Social Login") {
+                    ForEach(SupabaseOAuthProvider.allCases) { provider in
+                        Button("Use \(provider.title)") {
+                            Task { await appModel.signInWithOAuth(provider: provider) }
+                        }
+                        .disabled(appModel.isBusy)
+                    }
+                }
+
+                Section("Email Login") {
                     TextField("Email", text: $email)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
                         .autocorrectionDisabled()
 
                     SecureField("Password", text: $password)
-                }
 
-                Section {
-                    Button("Sign In") {
+                    Button("Login") {
                         Task { await appModel.signIn(email: email, password: password) }
                     }
                     .disabled(appModel.isBusy || email.isEmpty || password.isEmpty)
@@ -33,7 +40,7 @@ struct AuthView: View {
                     if appModel.isBusy {
                         ProgressView()
                     }
-                    Text(appModel.statusMessage.isEmpty ? "Sign in to test Supabase memory." : appModel.statusMessage)
+                    Text(appModel.statusMessage.isEmpty ? "Log in to test Supabase memory." : appModel.statusMessage)
                         .font(.footnote)
                 }
             }
