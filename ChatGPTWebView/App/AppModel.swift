@@ -11,6 +11,7 @@ final class AppModel: ObservableObject {
     @Published var searchResults: [MemoryItem] = []
     @Published var diagnostics: [SupabaseDiagnosticResult] = []
     @Published private(set) var lastVirtualMCPResult: VirtualMCPSaveContextResult?
+    @Published private(set) var lastSessionImportResult: SessionContextImportResult?
     @Published var isBusy = false
 
     let configStore = SupabaseConfigStore()
@@ -167,6 +168,7 @@ final class AppModel: ObservableObject {
         self.selectedProject = nil
         self.searchResults = []
         self.lastVirtualMCPResult = nil
+        self.lastSessionImportResult = nil
         if clearConfig {
             self.configStore.clear()
         }
@@ -284,6 +286,52 @@ final class AppModel: ObservableObject {
                 message: "save_context_after_approval pushed approved context into Supabase."
             )
             self.lastVirtualMCPResult = result
+            self.statusMessage = result.message
+        }
+    }
+
+    func importSessionAfterApproval(
+        title: String,
+        content: String,
+        source: String,
+        tagsText: String,
+        importance: Int
+    ) async {
+        guard let selectedProject = self.selectedProject else {
+            self.statusMessage = "Create or select a project before importing session context."
+            return
+        }
+
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            self.statusMessage = "Session import requires a title."
+            return
+        }
+
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            self.statusMessage = "Paste session context before approving import."
+            return
+        }
+
+        await runBusy("Importing approved session context into Supabase...") { [self] in
+            let response = try await self.memoryClient().importSessionAfterApproval(
+                projectID: selectedProject.id,
+                title: title,
+                content: content,
+                source: source,
+                tags: self.parseCommaSeparatedList(tagsText),
+                importance: importance
+            )
+
+            let result = SessionContextImportResult(
+                saved: response.saved,
+                projectID: response.project_id,
+                memoryItemID: response.memory_item_id,
+                sessionSummaryID: response.session_summary_id,
+                toolEventID: response.tool_event?.id,
+                toolName: response.tool_name,
+                message: "Imported approved session context into Supabase."
+            )
+            self.lastSessionImportResult = result
             self.statusMessage = result.message
         }
     }
