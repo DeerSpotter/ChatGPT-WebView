@@ -190,6 +190,30 @@ public actor SupabaseMemoryClient {
         return try await post(body)
     }
 
+    public func importSessionAfterApproval(
+        projectID: UUID,
+        title: String,
+        content: String,
+        source: String = "chatgpt_web",
+        tags: [String] = [],
+        importance: Int = 3
+    ) async throws -> SaveContextAfterApprovalResponse {
+        try await post([
+            "action": "import_session_after_approval",
+            "project_id": projectID.uuidString,
+            "title": title,
+            "content": content,
+            "source": source,
+            "tags": tags,
+            "importance": importance,
+            "metadata": [
+                "source": "ios_session_import",
+                "approved": true,
+                "tool_name": "import_session_after_approval"
+            ]
+        ])
+    }
+
     public func getProjectContext(projectID: UUID) async throws -> ProjectContext {
         try await post([
             "action": "get_project_context",
