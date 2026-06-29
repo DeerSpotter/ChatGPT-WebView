@@ -16,6 +16,8 @@ type MemoryRequest = {
   open_tasks?: string[];
   files_discussed?: string[];
   next_steps?: string[];
+  importance?: number;
+  is_pinned?: boolean;
   metadata?: JsonRecord;
 };
 
@@ -44,7 +46,77 @@ function requireString(value: unknown, field: string): string {
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function clampImportance(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 3;
+  }
+  return Math.min(Math.max(Math.round(value), 1), 5);
+}
+
+function uniqueTags(value: unknown): string[] {
+  const tags = asStringArray(value).map((tag) => tag.toLowerCase());
+  for (const required of ["mcp", "approved-save"]) {
+    if (!tags.includes(required)) {
+      tags.push(required);
+    }
+  }
+  return [...new Set(tags)].slice(0, 12);
+}
+
+function appendSection(sections: string[], title: string, values: string[]) {
+  if (values.length === 0) return;
+  sections.push(`${title}:\n${values.map((item) => `- ${item}`).join("\n")}`);
+}
+
+function approvedContextContent(body: MemoryRequest, importance: number): string {
+  const sections: string[] = [];
+  sections.push(requireString(body.summary ?? body.content, "summary"));
+  appendSection(sections, "Decisions", asStringArray(body.decisions));
+  appendSection(sections, "Open tasks", asStringArray(body.open_tasks));
+  appendSection(sections, "Files discussed", asStringArray(body.files_discussed));
+  appendSection(sections, "Next steps", asStringArray(body.next_steps));
+  sections.push(`Importance: ${importance}/5`);
+  sections.push("Source: mcp.save_context_after_approval");
+  return sections.join("\n\n");
+}
+
+async function insertToolEvent(
+  supabase: ReturnType<typeof createClient>,
+  body: MemoryRequest,
+  status: "ok" | "error",
+  response: JsonRecord,
+  error?: string
+) {
+  const { data } = await supabase
+    .from("memory_tool_events")
+    .insert({
+      project_id: body.project_id ?? null,
+      session_id: body.session_id ?? null,
+      action: body.action,
+      status,
+      request: {
+        title: body.title ?? null,
+        tags: body.tags ?? [],
+        importance: body.importance ?? null,
+        has_summary: typeof body.summary === "string" && body.summary.trim().length > 0,
+        decisions_count: asStringArray(body.decisions).length,
+        open_tasks_count: asStringArray(body.open_tasks).length,
+        files_discussed_count: asStringArray(body.files_discussed).length,
+        next_steps_count: asStringArray(body.next_steps).length
+      },
+      response,
+      error: error ?? null
+    })
+    .select("id,project_id,session_id,action,status,created_at")
+    .single();
+
+  return data ?? null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -142,6 +214,8 @@ Deno.serve(async (req: Request) => {
             title,
             content,
             tags: asStringArray(body.tags),
+            importance: clampImportance(body.importance),
+            is_pinned: body.is_pinned === true,
             metadata: body.metadata ?? {}
           })
           .select()
@@ -149,6 +223,72 @@ Deno.serve(async (req: Request) => {
 
         if (error) throw error;
         return jsonResponse({ memory: data });
+      }
+
+      case "save_context_after_approval": {
+        const project_id = requireString(body.project_id, "project_id");
+        const title = requireString(body.title, "title");
+        const summary = requireString(body.summary ?? body.content, "summary");
+        const importance = clampImportance(body.importance);
+        const tags = uniqueTags(body.tags);
+        const content = approvedContextContent(body, importance);
+        const metadata = {
+          ...(body.metadata ?? {}),
+          approved: true,
+          source: "mcp",
+          tool_name: "save_context_after_approval"
+        };
+
+        const { data: memory, error: memoryError } = await supabase
+          .from("memory_items")
+          .insert({
+            project_id,
+            source_session_id: body.session_id ?? null,
+            title,
+            content,
+            tags,
+            importance,
+            is_pinned: body.is_pinned === true,
+            metadata
+          })
+          .select("id,project_id,title,content,tags,importance,is_pinned,created_at,updated_at")
+          .single();
+
+        if (memoryError) throw memoryError;
+
+        const { data: sessionSummary, error: summaryError } = await supabase
+          .from("memory_session_summaries")
+          .insert({
+            project_id,
+            session_id: body.session_id ?? null,
+            summary,
+            decisions: asStringArray(body.decisions),
+            open_tasks: asStringArray(body.open_tasks),
+            files_discussed: asStringArray(body.files_discussed),
+            next_steps: asStringArray(body.next_steps),
+            importance,
+            metadata
+          })
+          .select("id,project_id,session_id,summary,decisions,open_tasks,files_discussed,next_steps,importance,created_at")
+          .single();
+
+        if (summaryError) throw summaryError;
+
+        const response = {
+          saved: true,
+          project_id,
+          memory_item_id: memory.id,
+          session_summary_id: sessionSummary.id,
+          tool_name: "save_context_after_approval"
+        };
+        const toolEvent = await insertToolEvent(supabase, body, "ok", response);
+
+        return jsonResponse({
+          ...response,
+          memory,
+          session_summary: sessionSummary,
+          tool_event: toolEvent
+        });
       }
 
       case "search_memory": {
@@ -183,6 +323,7 @@ Deno.serve(async (req: Request) => {
             open_tasks: asStringArray(body.open_tasks),
             files_discussed: asStringArray(body.files_discussed),
             next_steps: asStringArray(body.next_steps),
+            importance: clampImportance(body.importance),
             metadata: body.metadata ?? {}
           })
           .select()
@@ -241,6 +382,11 @@ Deno.serve(async (req: Request) => {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    try {
+      await insertToolEvent(supabase, body, "error", {}, message);
+    } catch {
+      // Do not hide the original error if audit logging fails.
+    }
     return jsonResponse({ error: message }, 400);
   }
 });
