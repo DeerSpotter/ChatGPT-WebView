@@ -9,6 +9,11 @@ struct MemoryTestView: View {
     @State private var memoryContent = "The trusted IPA should be built from this repository source through GitHub Actions, not downloaded from the upstream release."
     @State private var memoryTags = "repo, ipa, trust"
     @State private var searchQuery = "trusted ipa"
+    @State private var sessionImportTitle = "Imported ChatGPT session context"
+    @State private var sessionImportContent = ""
+    @State private var sessionImportSource = "chatgpt_web"
+    @State private var sessionImportTags = "session-import, chatgpt-webview"
+    @State private var sessionImportImportance = 5
     @State private var virtualMCPTitle = "Virtual MCP memory direction"
     @State private var virtualMCPSummary = "The app should prototype the MCP connector as a virtual tool layer first. The virtual layer lives inside the app, uses the same tool name and JSON-style contract planned for the real MCP server, and saves approved context through the existing Supabase memory backend."
     @State private var virtualMCPDecisions = "Keep the fixed context pack script for repeatable project memory.\nAdd the optional local context pack UI for targeted file selection.\nContinue treating the MCP connector as the real memory system.\nPrototype save_context_after_approval as a virtual tool inside the app before building the real server."
@@ -81,6 +86,101 @@ struct MemoryTestView: View {
                                     MemoryResultRow(item: item)
                                 }
                             }
+                        }
+                    }
+
+                    MemoryCard(title: "Import Session Context", systemImage: "square.and.arrow.down.on.square") {
+                        Text("Paste the important context from this ChatGPT session and push it directly from the app into your Supabase memory. This does not use a ChatGPT connector write.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+
+                        TextField("Title", text: $sessionImportTitle)
+                            .textFieldStyle(.roundedBorder)
+
+                        TextField("Source", text: $sessionImportSource)
+                            .textFieldStyle(.roundedBorder)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+
+                        TextField("Tags, comma separated", text: $sessionImportTags)
+                            .textFieldStyle(.roundedBorder)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+
+                        Stepper("Importance: \(sessionImportImportance)/5", value: $sessionImportImportance, in: 1...5)
+
+                        Text("Session context")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.secondary)
+
+                        TextEditor(text: $sessionImportContent)
+                            .frame(minHeight: 160)
+                            .padding(8)
+                            .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
+                            )
+
+                        HStack(spacing: 10) {
+                            Button {
+                                if let pasted = UIPasteboard.general.string, !pasted.isEmpty {
+                                    sessionImportContent = pasted
+                                    appModel.statusMessage = "Pasted clipboard into session context import."
+                                } else {
+                                    appModel.statusMessage = "Clipboard does not contain text."
+                                }
+                            } label: {
+                                Label("Paste", systemImage: "doc.on.clipboard")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+
+                            Button {
+                                sessionImportContent = ""
+                                appModel.statusMessage = "Cleared session import text."
+                            } label: {
+                                Label("Clear", systemImage: "xmark.circle")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        Button {
+                            Task {
+                                await appModel.importSessionAfterApproval(
+                                    title: sessionImportTitle,
+                                    content: sessionImportContent,
+                                    source: sessionImportSource,
+                                    tagsText: sessionImportTags,
+                                    importance: sessionImportImportance
+                                )
+                            }
+                        } label: {
+                            Label("Approve Import", systemImage: "checkmark.seal")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(
+                            appModel.isBusy
+                            || appModel.selectedProject == nil
+                            || sessionImportTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || sessionImportContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        )
+
+                        if let result = appModel.lastSessionImportResult {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(result.message)
+                                    .font(.caption.weight(.semibold))
+                                MemoryInfoRow(label: "Tool", value: result.toolName)
+                                MemoryInfoRow(label: "Memory item", value: result.memoryItemID.uuidString)
+                                MemoryInfoRow(label: "Summary", value: result.sessionSummaryID.uuidString)
+                                if let toolEventID = result.toolEventID {
+                                    MemoryInfoRow(label: "Tool event", value: toolEventID.uuidString)
+                                }
+                            }
+                            .padding(10)
+                            .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
                         }
                     }
 
@@ -170,6 +270,9 @@ struct MemoryTestView: View {
                                 MemoryInfoRow(label: "Tool", value: result.toolName)
                                 MemoryInfoRow(label: "Memory item", value: result.memoryItemID.uuidString)
                                 MemoryInfoRow(label: "Summary", value: result.sessionSummaryID.uuidString)
+                                if let toolEventID = result.toolEventID {
+                                    MemoryInfoRow(label: "Tool event", value: toolEventID.uuidString)
+                                }
                             }
                             .padding(10)
                             .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
